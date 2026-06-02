@@ -3,8 +3,6 @@ import pandas as pd
 def aggregate_by_minute(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["minute"] = df["time_stamp"].dt.floor("min")
-    #df["laser_n1_alarm"] = df["laser_n1_main_status"] & 1
-    #df["laser_s1_alarm"] = df["laser_s1_main_status"] & 1
     metrics_per_minute = df.groupby(["session_id","minute"]).agg(
         gps_avg_speed = ("gps_speed","mean"),
         gps_count_no_signal =("gps_n_satellites",lambda x: (x == 0).sum()),
@@ -14,12 +12,11 @@ def aggregate_by_minute(df: pd.DataFrame) -> pd.DataFrame:
         avg_compressor_pressure = ("compressor_pressure","mean"),
         max_compressor_pressure = ("compressor_pressure","max"),
         laser_n1_avg_power = ("laser_n1_measured_power", "mean"),
-        #laser_n1_alarm_count = ("laser_n1_alarm", "sum"),
         laser_s1_avg_power = ("laser_s1_measured_power", "mean"),
-        #laser_s1_alarm_count = ("laser_s1_alarm", "sum"),
         avg_temp_lens_box_n1 = ("temp_n1_lens_box","mean"),
         avg_temp_lens_box_s1 = ("temp_s1_lens_box","mean"),
         avg_system_health_cpu = ("system_health_cpu","mean"),
-        avg_system_health_free_memory = ("system_health_free_memory","mean")
+        avg_system_health_free_memory = ("system_health_free_memory","mean"),
+        fpga_state_mode = ("fpga_state", lambda x: x.mode()[0])
     )
     return metrics_per_minute.reset_index()
