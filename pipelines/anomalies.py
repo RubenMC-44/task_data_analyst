@@ -60,7 +60,7 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
         (df["gps_dilution_of_precision"] >= 5) & (df["gps_dilution_of_precision"] <= 10),
         (df["gps_dilution_of_precision"] > 10)
     ]
-    levels = ("warning","critical")
+    levels = ("GPS_warning","GPS_critical")
     #Adding levels of warning or critial depending of the DOP numbers
     mask_dop = df["gps_dilution_of_precision"] >= 5
     #Creating the data base with the anomaly
@@ -69,5 +69,18 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
     dop_anomaly["detail"] = df.loc[mask_dop, "gps_dilution_of_precision"].values
     anomalies.append(dop_anomaly)
 
+    #System anomalies
+    health_cpu_mean= df["system_health_cpu"].mean()
+    health_cpu_std = df["system_health_cpu"].std()
+
+    health_cpu_upper = health_cpu_mean + 3* health_cpu_std 
+
+    mask_health_cpu = df["system_health_cpu"] > health_cpu_upper
+    health_cpu_anomaly = df.loc[mask_health_cpu, ["session_id","time_stamp"]].copy()
+    health_cpu_anomaly["anomaly_type"] = "high_cpu_usage"
+    health_cpu_anomaly["detail"] = df.loc[mask_health_cpu, "system_health_cpu"].values
+    anomalies.append(health_cpu_anomaly)
+    #Impleméntalo tú en anomalies.py — es igual que hiciste con la presión: calcula media y std, 
+    #define el umbral superior y filtra las filas que lo superan. ¿Lo intentas?
 
     return pd.concat(anomalies, ignore_index=True)
