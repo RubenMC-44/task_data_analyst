@@ -10,6 +10,9 @@ ROOT = Path(__file__).parent
 sessions_path = ROOT / "sessions"
 sessions = [load_session(p) for p in sessions_path.glob("*.csv")]
 
+if not sessions:
+    raise FileNotFoundError(f"No CSV files found in {sessions_path}")
+
 # Connect to DuckDB database
 con = get_connection()
 
@@ -25,12 +28,6 @@ for s, m, a in zip(sessions, metrics, anomalies):
     insert_session(con, s)
     insert_metrics(con, m)
     insert_anomalies(con, a)
-
-
-# Check all tables in DuckDB
-print(con.execute("SELECT session_id, COUNT(*) FROM raw_sessions GROUP BY session_id").df())
-print(con.execute("SELECT session_id, COUNT(*) FROM metrics_per_minute GROUP BY session_id").df())
-print(con.execute("SELECT session_id, COUNT(*) FROM detect_anomalies GROUP BY session_id").df())
 
 # Close the database connection
 con.close()
