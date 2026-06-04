@@ -13,6 +13,10 @@ def load_session(path: Path) -> pd.DataFrame:
     # Converting string to booleans
     BOOL_COLS = ["chiller_n1_alarm","chiller_n1_on","chiller_s1_alarm","chiller_s1_on","n1_emission_stop","s1_emission_stop"]
     df[BOOL_COLS] = df[BOOL_COLS].replace({"t": True, "f": False}).astype(bool)
+
+    # Status bitmask columns — NULL means subsystem offline; 0 = no alarm/warning active
+    STATUS_INT_COLS = ["laser_n1_main_status", "laser_s1_main_status"]
+    df[STATUS_INT_COLS] = df[STATUS_INT_COLS].fillna(0).astype(int)
     
     # session_id from each session
     df["session_id"] = path.stem.split("_")[-1]
