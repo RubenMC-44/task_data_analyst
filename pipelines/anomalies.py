@@ -20,6 +20,20 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
     laser_s1_alarm["detail"] = "alarm_s1_activated"
     anomalies.append(laser_s1_alarm)
 
+    # Chiller alarms — hardware-reported fault flag, no inference needed
+    mask_chiller_n1_alarm = df["chiller_n1_alarm"] == True
+    mask_chiller_s1_alarm = df["chiller_s1_alarm"] == True
+
+    chiller_n1_alarm = df.loc[mask_chiller_n1_alarm, ["session_id", "time_stamp"]].copy()
+    chiller_n1_alarm["anomaly_type"] = "chiller_n1_alarm"
+    chiller_n1_alarm["detail"] = "alarm_n1_activated"
+    anomalies.append(chiller_n1_alarm)
+
+    chiller_s1_alarm = df.loc[mask_chiller_s1_alarm, ["session_id", "time_stamp"]].copy()
+    chiller_s1_alarm["anomaly_type"] = "chiller_s1_alarm"
+    chiller_s1_alarm["detail"] = "alarm_s1_activated"
+    anomalies.append(chiller_s1_alarm)
+
     # Laser humidity — reading of 0 indicates sensor failure
     mask_humidity_n1 = df["laser_n1_humidity"] == 0
     mask_humidity_s1 = df["laser_s1_humidity"] == 0
@@ -66,7 +80,7 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
     mask_dop = df["gps_dilution_of_precision"] >= 5
     dop_anomaly = df.loc[mask_dop, ["session_id", "time_stamp"]].copy()
     dop_anomaly["anomaly_type"] = np.where(
-    dop_anomaly["gps_dilution_of_precision"] > 10, "GPS_critical", "GPS_warning")
+        df.loc[mask_dop, "gps_dilution_of_precision"] > 10, "GPS_critical", "GPS_warning")
     dop_anomaly["detail"] = df.loc[mask_dop, "gps_dilution_of_precision"].astype(str).values
     anomalies.append(dop_anomaly)
 
@@ -80,5 +94,20 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
     health_cpu_anomaly["anomaly_type"] = "high_cpu_usage"
     health_cpu_anomaly["detail"] = df.loc[mask_health_cpu, "system_health_cpu"].astype(str).values
     anomalies.append(health_cpu_anomaly)
+
+    # Subsystem offline / warming-up — NaN in the key measurement column means the subsystem was not reporting
+    SUBSYSTEM_PROBES = {
+        "laser_n1":   "laser_n1_measured_power",
+        "laser_s1":   "laser_s1_measured_power",
+        "chiller_n1": "chiller_n1_main_circuit_temperature",
+        "chiller_s1": "chiller_s1_main_circuit_temperature",
+    }
+    for subsystem, col in SUBSYSTEM_PROBES.items():
+        mask_offline = df[col].isna()
+        if mask_offline.any():
+            offline = df.loc[mask_offline, ["session_id", "time_stamp"]].copy()
+            offline["anomaly_type"] = "subsystem_offline"
+            offline["detail"] = subsystem
+            anomalies.append(offline)
 
     return pd.concat(anomalies, ignore_index=True)
