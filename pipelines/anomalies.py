@@ -75,12 +75,11 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
     compressor_anomaly["detail"] = df.loc[mask_compressor_anomaly, "compressor_pressure"].astype(str).values
     anomalies.append(compressor_anomaly)
 
-    # GPS Dilution of Precision — DOP >= 5: warning, DOP > 10: critical
-    
-    mask_dop = df["gps_dilution_of_precision"] >= 5
+    # GPS Dilution of Precision — 2–5: moderate (warning), >5: poor (critical)
+    mask_dop = df["gps_dilution_of_precision"] > 2
     dop_anomaly = df.loc[mask_dop, ["session_id", "time_stamp"]].copy()
     dop_anomaly["anomaly_type"] = np.where(
-        df.loc[mask_dop, "gps_dilution_of_precision"] > 10, "GPS_critical", "GPS_warning")
+        df.loc[mask_dop, "gps_dilution_of_precision"] > 5, "GPS_poor_signal", "GPS_moderate_signal")
     dop_anomaly["detail"] = df.loc[mask_dop, "gps_dilution_of_precision"].astype(str).values
     anomalies.append(dop_anomaly)
 
@@ -94,6 +93,37 @@ def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
     health_cpu_anomaly["anomaly_type"] = "high_cpu_usage"
     health_cpu_anomaly["detail"] = df.loc[mask_health_cpu, "system_health_cpu"].astype(str).values
     anomalies.append(health_cpu_anomaly)
+
+    # Impossible temperature readings — values below 0°C indicate a sensor fault or corrupt reading.
+    # A working sensor on active hardware should never report sub-zero temperatures.
+    TEMP_COLS = [
+        "temp_n1_top_pw", "temp_s1_top_pw",
+        "temp_n1_bottom_pw", "temp_s1_bottom_pw",
+        "temp_lens_box_n1", "temp_lens_box_s1",
+    ]
+    for col in TEMP_COLS:
+        if col not in df.columns:
+            continue
+        mask_impossible = df[col] < 0
+        if mask_impossible.any():
+            impossible = df.loc[mask_impossible, ["session_id", "time_stamp"]].copy()
+            impossible["anomaly_type"] = "impossible_temperature"
+            impossible["detail"] = col + ": " + df.loc[mask_impossible, col].round(2).astype(str) + "°C"
+            anomalies.append(impossible)
+
+    # Stuck temperature sensors — a sensor returning a single constant value across the entire session
+    # indicates hardware failure. One anomaly row per affected sensor per session.
+    TEMP_SENSORS = [
+        "temp_s1_top_pw", "temp_n1_top_pw",
+        "temp_s1_bottom_pw", "temp_n1_bottom_pw",
+        "temp_lens_box_n1", "temp_lens_box_s1",
+    ]
+    for col in TEMP_SENSORS:
+        if col in df.columns and df[col].nunique() <= 1 and df[col].notna().any():
+            stuck = df[["session_id", "time_stamp"]].iloc[[0]].copy()
+            stuck["anomaly_type"] = "stuck_sensor"
+            stuck["detail"] = f"{col} stuck at {df[col].iloc[0]:.4f}"
+            anomalies.append(stuck)
 
     # Subsystem offline / warming-up — NaN in the key measurement column means the subsystem was not reporting
     SUBSYSTEM_PROBES = {
