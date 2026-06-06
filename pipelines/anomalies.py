@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def anomaly_flags(df: pd.DataFrame) -> pd.DataFrame:
+def anomaly_flags(df: pd.DataFrame):
     """Detects anomalies across a session and returns a flat table with session_id, time_stamp, anomaly_type and detail."""
     df = df.copy()
     anomalies = []

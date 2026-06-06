@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def aggregate_by_minute(df: pd.DataFrame) -> pd.DataFrame:
+def aggregate_by_minute(df: pd.DataFrame):
     df = df.copy()
     df["minute"] = df["time_stamp"].dt.floor("min")
     metrics_per_minute = df.groupby(["session_id","minute"]).agg(
