@@ -62,7 +62,7 @@ This applies to all three tables. Whether you run it once or ten times, the resu
 
 ## Assumptions
 
-- Both sessions are from the **same vehicle and equipment** operating in similar conditions. Because of this, I used data from both sessions together to calculate the normal pressure ranges, rather than treating each session in isolation.
+- Both sessions come from the same vehicle and equipment type, but they are analyzed **independently** — each session has its own measurements and values, and there is no cross-session aggregation.
 - `fpga_state = 4` is the active cleaning mode. Pressure and temperature baselines are calculated only during this state, since startup, shutdown, and idle modes have different expected values.
 - `gps_n_satellites` always shows `0` in both sessions — the sensor simply isn't reporting in this hardware setup. So GPS health is assessed using DOP (a standard measure of GPS signal accuracy — lower is better) and fix quality (`gps_quality`) instead. A quality value above 0 means the receiver was computing a valid position.
 - Temperatures below 0°C on the power unit sensors are physically impossible for hardware that's running, so these are treated as sensor faults rather than real readings.
@@ -153,7 +153,7 @@ Each type is defined in [pipelines/anomalies.py](pipelines/anomalies.py):
 | `n1_laser_alarm` / `s1_laser_alarm` | Hardware alarm bit is set in the laser status field | Direct hardware flag — no inference needed. |
 | `chiller_n1_alarm` / `chiller_s1_alarm` | Chiller alarm field is True | Hardware-reported fault. Direct flag. |
 | `laser_n1_humidity` / `laser_s1_humidity` | Humidity reading is exactly 0 | A real humidity value is never exactly 0 — this means the sensor isn't responding. |
-| `blower_pressure` / `compressor_pressure` | Outside the normal range (mean ± 3 standard deviations) during active cleaning | A standard threshold for statistical outlier detection. Cross-session baseline makes it more robust. |
+| `blower_pressure` / `compressor_pressure` | Outside the normal range (mean ± 3 standard deviations) during active cleaning | A standard threshold for statistical outlier detection. The baseline is calculated per session, using only the active cleaning state (`fpga_state = 4`). |
 | `GPS_moderate_signal` | DOP between 2 and 5 | Standard GPS thresholds. Usable but degraded precision. |
 | `GPS_poor_signal` | DOP above 5 | Position data is unreliable at this level. |
 | `high_cpu_usage` | CPU above mean + 3 standard deviations | Only the upper end is flagged — low CPU is not a concern. |
@@ -185,4 +185,4 @@ If this pipeline needed to run automatically in a real environment:
 **For continuous incoming data:**
 - A file watcher or cloud storage event triggers the pipeline whenever a new session arrives
 - The delete-before-insert approach handles re-processing safely
-- For true real-time streaming, see the Redis consumer in `bonus/`
+
