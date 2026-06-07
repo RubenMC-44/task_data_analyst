@@ -73,10 +73,8 @@ This applies to all three tables. Whether you run it once or ten times, the resu
 ## What I left out
 
 - **Tests** — there's no test suite. The core functions are written in a way that would make them straightforward to test with synthetic data. Given more time, I'd add pytest tests covering each anomaly type and edge cases like empty sessions or columns that are entirely missing.
-- **Temperature drift detection** — the current anomaly detection catches hard failures (stuck sensors, impossible values) but not gradual drift over time (e.g., a temperature slowly climbing 10°C over several hours). That would need a rolling trend analysis and was left out for time.
 - **Multi-session comparison in the dashboard** — the dashboard shows one session at a time. A view comparing signal quality, pressure stability, or anomaly counts across sessions would be useful for fleet-level monitoring.
 - **Production setup** — no Airflow or dbt configuration was implemented (see the production notes at the end).
-
 ---
 
 ## Dashboard: why each chart
